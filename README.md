@@ -18,7 +18,7 @@ If you live near the coast please bear in mind that some of the random places mi
 
 ## Live Demo
 
-Visit the live application at: [Your Vercel URL here]
+Visit the live application at: [https://a-place-never-been.vercel.app/]
 
 ## Local Development
 
