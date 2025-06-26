@@ -357,7 +357,7 @@ export default function Home() {
                   type="range"
                   id="radius"
                   min={useMetric ? "1" : "1"}
-                  max={useMetric ? "800" : "500"}
+                  max={useMetric ? "644" : "400"}
                   value={getRadiusValue()}
                   onChange={(e) => setRadiusValue(Number(e.target.value))}
                   className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
