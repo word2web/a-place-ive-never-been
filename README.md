@@ -6,15 +6,15 @@ If you live near the coast please bear in mind that some of the random places mi
 
 ## Features
 
-- 🎯 Generate random coordinates within a customizable radius
-- 📍 Display coordinates in both decimal and DMS (Degrees, Minutes, Seconds) format
-- 📏 Calculate exact distance from starting point
-- 🗺️ Direct link to Google Maps for easy navigation
-- 🎨 Modern, responsive design with Tailwind CSS
-- ⚡ Fast and lightweight React/Next.js application
-- 🔍 Place search with automatic coordinate filling
-- ✏️ Manual coordinate editing capabilities
-- 📐 Unit toggle between miles and kilometers
+- Generate random coordinates within a customizable radius
+- Display coordinates in both decimal and DMS (Degrees, Minutes, Seconds) format
+- Calculate exact distance from starting point
+- Direct link to Google Maps for easy navigation
+- Modern, responsive design with Tailwind CSS
+- Fast and lightweight React/Next.js application
+- Place search with automatic coordinate filling
+- Manual coordinate editing capabilities
+- Unit toggle between miles and kilometers
 
 ## Live Demo
 
