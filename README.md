@@ -89,6 +89,11 @@ You can easily modify this in the code to use any location as your starting poin
 - **Vercel** - Deployment platform
 - **OpenStreetMap Nominatim** - Geocoding service
 
+
+## TODO (MAYBE)
+
+- [ ] Include automatic geolocation option
+
 ## Acknowledgments
 
 This project was developed with the assistance of **Claude Sonnet 4**, an AI coding assistant, through the **Cursor IDE**. The AI helped transform a simple Python script into a full-featured web application, implementing:
