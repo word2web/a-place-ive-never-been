@@ -125,6 +125,29 @@ export default function Home() {
     }
   }
 
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    setIsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setOriginalCoords({ lat: latitude, lon: longitude });
+        setManualLat(latitude.toString());
+        setManualLon(longitude.toString());
+        setSearchQuery('My Location');
+        setShowManualInput(false);
+        setIsLoading(false);
+      },
+      (error) => {
+        alert('Unable to retrieve your location. Please check your browser settings and try again.');
+        setIsLoading(false);
+      }
+    );
+  };
+
   const selectPlace = (place: PlaceSearchResult) => {
     setOriginalCoords({
       lat: parseFloat(place.lat),
@@ -226,7 +249,7 @@ export default function Home() {
                 <label className="block text-sm font-medium text-gray-700">
                   Search for a place
                 </label>
-                <div className="relative">
+                <div className="relative flex space-x-2">
                   <input
                     type="text"
                     value={searchQuery}
@@ -234,6 +257,15 @@ export default function Home() {
                     placeholder="Enter a place name..."
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
+                  <button
+                    type="button"
+                    onClick={handleUseMyLocation}
+                    className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold whitespace-nowrap disabled:bg-blue-300"
+                    disabled={isLoading}
+                    title="Use your current location"
+                  >
+                    Use My Location
+                  </button>
                   {isSearching && (
                     <div className="absolute right-3 top-2">
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
