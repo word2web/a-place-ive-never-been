@@ -1,6 +1,10 @@
 'use client'
 
-import React, { useState } from 'react'
+import MapView from './MapView'
+
+
+
+import React, { useState, useEffect } from 'react'
 
 interface Coordinates {
   lat: number
@@ -30,12 +34,22 @@ export default function Home() {
   const [distance, setDistance] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [useMetric, setUseMetric] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<PlaceSearchResult[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [showManualInput, setShowManualInput] = useState(false)
-  const [manualLat, setManualLat] = useState('55.774167')
-  const [manualLon, setManualLon] = useState('-3.918333')
+  const [showCoords, setShowCoords] = useState(false)
+  const [geoLoaded, setGeoLoaded] = useState(false)
+
+  // On mount, try to get geolocation automatically
+  useEffect(() => {
+    if (!geoLoaded && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setOriginalCoords({ lat: latitude, lon: longitude });
+          setGeoLoaded(true);
+        },
+        () => setGeoLoaded(true) // Even if denied, mark as loaded
+      );
+    }
+  }, [geoLoaded]);
 
   const dmsToDecimal = (degrees: number, minutes: number, seconds: number, direction: string): number => {
     const decimal = degrees + minutes / 60 + seconds / 3600
@@ -95,36 +109,6 @@ export default function Home() {
     return distanceKm * 0.621371
   }
 
-  const searchPlaces = async (query: string) => {
-    if (query.length < 3) {
-      setSearchResults([])
-      return
-    }
-
-    setIsSearching(true)
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`
-      )
-      const data = await response.json()
-      setSearchResults(data)
-    } catch (error) {
-      console.error('Error searching places:', error)
-      setSearchResults([])
-    } finally {
-      setIsSearching(false)
-    }
-  }
-
-  const handleSearchChange = (value: string) => {
-    setSearchQuery(value)
-    if (value.length >= 3) {
-      searchPlaces(value)
-    } else {
-      setSearchResults([])
-    }
-  }
-
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) {
       alert('Geolocation is not supported by your browser.');
@@ -135,10 +119,6 @@ export default function Home() {
       (position) => {
         const { latitude, longitude } = position.coords;
         setOriginalCoords({ lat: latitude, lon: longitude });
-        setManualLat(latitude.toString());
-        setManualLon(longitude.toString());
-        setSearchQuery('My Location');
-        setShowManualInput(false);
         setIsLoading(false);
       },
       (error) => {
@@ -147,30 +127,6 @@ export default function Home() {
       }
     );
   };
-
-  const selectPlace = (place: PlaceSearchResult) => {
-    setOriginalCoords({
-      lat: parseFloat(place.lat),
-      lon: parseFloat(place.lon)
-    })
-    setManualLat(place.lat)
-    setManualLon(place.lon)
-    setSearchQuery(place.display_name)
-    setSearchResults([])
-    setShowManualInput(false)
-  }
-
-  const updateManualCoordinates = () => {
-    const lat = parseFloat(manualLat)
-    const lon = parseFloat(manualLon)
-    
-    if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
-      setOriginalCoords({ lat, lon })
-      setShowManualInput(false)
-    } else {
-      alert('Please enter valid coordinates:\nLatitude: -90 to 90\nLongitude: -180 to 180')
-    }
-  }
 
   const generateNewPlace = () => {
     setIsLoading(true)
@@ -244,111 +200,30 @@ export default function Home() {
             <div className="space-y-4">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">Starting Point</h2>
               
-              {/* Place Search */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Search for a place
+              {/* Show Coordinates Toggle */}
+              <div className="flex items-center space-x-2 mb-2">
+                <input
+                  type="checkbox"
+                  id="showCoords"
+                  checked={showCoords}
+                  onChange={() => setShowCoords((v) => !v)}
+                  className="mr-2"
+                />
+                <label htmlFor="showCoords" className="text-sm text-gray-700 cursor-pointer">
+                  Show coordinates
                 </label>
-                <div className="relative flex space-x-2">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    placeholder="Enter a place name..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleUseMyLocation}
-                    className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold whitespace-nowrap disabled:bg-blue-300"
-                    disabled={isLoading}
-                    title="Use your current location"
-                  >
-                    Use My Location
-                  </button>
-                  {isSearching && (
-                    <div className="absolute right-3 top-2">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Search Results */}
-                {searchResults.length > 0 && (
-                  <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                    {searchResults.map((place, index) => (
-                      <button
-                        key={index}
-                        onClick={() => selectPlace(place)}
-                        className="w-full text-left px-3 py-2 hover:bg-gray-100 border-b border-gray-200 last:border-b-0"
-                      >
-                        <div className="text-sm font-medium text-gray-900">{place.display_name}</div>
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
-
-              {/* Manual Coordinates Toggle */}
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setShowManualInput(!showManualInput)}
-                  className="text-sm text-blue-600 hover:text-blue-800 underline"
-                >
-                  {showManualInput ? 'Hide' : 'Edit coordinates manually'}
-                </button>
-              </div>
-
-              {/* Manual Coordinate Input */}
-              {showManualInput && (
-                <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Latitude
-                      </label>
-                      <input
-                        type="number"
-                        step="any"
-                        value={manualLat}
-                        onChange={(e) => setManualLat(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="e.g., 55.774167"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Longitude
-                      </label>
-                      <input
-                        type="number"
-                        step="any"
-                        value={manualLon}
-                        onChange={(e) => setManualLon(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="e.g., -3.918333"
-                      />
-                    </div>
+              {showCoords && (
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="text-sm text-gray-600 mb-2">Current Coordinates</div>
+                  <div className="text-sm font-mono text-gray-900">
+                    <div>Lat: {formatDMS(originalDMS.lat)}</div>
+                    <div>Lon: {formatDMS(originalDMS.lon)}</div>
                   </div>
-                  <button
-                    onClick={updateManualCoordinates}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
-                  >
-                    Update Coordinates
-                  </button>
                 </div>
               )}
-
-              {/* Current Coordinates Display */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="text-sm text-gray-600 mb-2">Current Coordinates</div>
-                <div className="text-sm font-mono text-gray-900">
-                  <div>Lat: {formatDMS(originalDMS.lat)}</div>
-                  <div>Lon: {formatDMS(originalDMS.lon)}</div>
-                </div>
-              </div>
             </div>
-
+            
             {/* Controls */}
             <div className="space-y-4">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">Settings</h2>
@@ -421,6 +296,16 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Always show the map */}
+        <MapView
+          startLat={originalCoords.lat}
+          startLon={originalCoords.lon}
+          destLat={newCoords?.lat}
+          destLon={newCoords?.lon}
+          radius={getRadiusValue()}
+          useMetric={useMetric}
+        />
+
         {/* Results */}
         {newCoords && (
           <div className="bg-white rounded-2xl shadow-xl p-8">
@@ -452,25 +337,11 @@ export default function Home() {
                 </div>
               </div>
             </div>
-
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <div className="text-center">
-                <a
-                  href={`https://www.google.com/maps?q=${newCoords.lat},${newCoords.lon}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors duration-200"
-                >
-                  <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                  </svg>
-                  View on Google Maps
-                </a>
-              </div>
-            </div>
           </div>
+          
         )}
       </div>
     </div>
+    
   )
 } 
