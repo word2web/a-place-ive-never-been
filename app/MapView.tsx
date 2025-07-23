@@ -95,11 +95,14 @@ const MapView: React.FC<MapViewProps> = ({ startLat, startLon, destLat, destLon,
       controls: [],
     });
 
-    const extent = vectorLayer.getSource().getExtent();
-    mapInstance.current.getView().fit(extent, {
-      padding: [40, 40, 40, 40], // pixels of padding around the features
-      maxZoom: 14, // prevent zooming in too far
-    });
+const source = vectorLayer.getSource();
+if (source) {
+  const extent = source.getExtent();
+  mapInstance.current.getView().fit(extent, {
+    padding: [40, 40, 40, 40],
+    maxZoom: 14,
+  });
+}
   
     // CLEANUP
     return () => {
