@@ -29,11 +29,11 @@ const MapView: React.FC<MapViewProps> = ({ startLat, startLon, destLat, destLon,
   useEffect(() => {
     if (!mapRef.current) return;
   
-    // START MARKER
-    const marker = new Feature({
+    // START MARKER (Red pin)
+    const startMarker = new Feature({
       geometry: new Point(fromLonLat([startLon, startLat])),
     });
-    marker.setStyle(
+    startMarker.setStyle(
       new Style({
         image: new Icon({
           src: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
@@ -43,7 +43,7 @@ const MapView: React.FC<MapViewProps> = ({ startLat, startLon, destLat, destLon,
       })
     );
   
-    // DESTINATION MARKER (if present)
+    // DESTINATION MARKER (Green pin, if present)
     let destMarker: Feature<Point> | null = null;
     if (typeof destLat === 'number' && typeof destLon === 'number') {
       destMarker = new Feature({
@@ -52,7 +52,7 @@ const MapView: React.FC<MapViewProps> = ({ startLat, startLon, destLat, destLon,
       destMarker.setStyle(
         new Style({
           image: new Icon({
-            src: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
+            src: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png',
             anchor: [0.5, 1],
             scale: 1,
           }),
@@ -73,7 +73,7 @@ const MapView: React.FC<MapViewProps> = ({ startLat, startLon, destLat, destLon,
     );
   
     // COLLECT FEATURES
-    const features = [marker, circle];
+    const features = [startMarker, circle];
     if (destMarker) features.push(destMarker);
   
     // VECTOR LAYER
@@ -111,10 +111,25 @@ if (source) {
   }, [startLat, startLon, destLat, destLon, radius, useMetric]);
 
   return (
-    <div
-      ref={mapRef}
-      style={{ width: '100%', height: '350px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
-    />
+    <div className="relative">
+      <div
+        ref={mapRef}
+        style={{ width: '100%', height: '350px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+      />
+      {/* Legend */}
+      <div className="absolute top-4 left-4 bg-white bg-opacity-90 rounded-lg p-3 shadow-md text-sm">
+        <div className="flex items-center space-x-2 mb-1">
+          <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+          <span>Start location</span>
+        </div>
+        {destLat && destLon && (
+          <div className="flex items-center space-x-2">
+            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+            <span>New destination</span>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
