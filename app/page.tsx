@@ -2,7 +2,7 @@
 
 import MapView from './MapView'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 
 interface Coordinates {
   lat: number
@@ -37,6 +37,9 @@ export default function Home() {
   const [showCoords, setShowCoords] = useState(false)
   const [geoLoaded, setGeoLoaded] = useState(false)
   const [currentView, setCurrentView] = useState<ViewState>('setup')
+
+  const adjustIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const sliderRef = useRef<HTMLInputElement | null>(null)
 
   // On mount, try to get geolocation automatically
   useEffect(() => {
@@ -182,6 +185,90 @@ export default function Home() {
     }
   }
 
+  // Press-and-hold increment/decrement for +/- buttons
+  const startAdjust = (delta: number) => {
+    const min = 1
+    const max = useMetric ? 644 : 400
+    // Apply one step immediately
+    const initial = Math.min(max, Math.max(min, getRadiusValue() + delta))
+    setRadiusValue(initial)
+    // Repeat while holding
+    if (adjustIntervalRef.current) clearInterval(adjustIntervalRef.current)
+    adjustIntervalRef.current = setInterval(() => {
+      const current = getRadiusValue()
+      const next = Math.min(max, Math.max(min, current + delta))
+      setRadiusValue(next)
+    }, 120)
+  }
+
+  const stopAdjust = () => {
+    if (adjustIntervalRef.current) {
+      clearInterval(adjustIntervalRef.current)
+      adjustIntervalRef.current = null
+    }
+  }
+
+  // Custom drag anywhere on track (mouse/touch)
+  const getMin = () => 1
+  const getMax = () => (useMetric ? 644 : 400)
+
+  const updateFromClientX = (clientX: number) => {
+    const input = sliderRef.current
+    if (!input) return
+    const rect = input.getBoundingClientRect()
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+    const min = getMin()
+    const max = getMax()
+    const raw = min + ratio * (max - min)
+    const stepped = Math.round(raw) // step = 1
+    setRadiusValue(stepped)
+  }
+
+  const onMouseDownTrack = (e: React.MouseEvent<HTMLInputElement>) => {
+    e.preventDefault()
+    updateFromClientX(e.clientX)
+    const onMove = (ev: MouseEvent) => updateFromClientX(ev.clientX)
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  const onTouchStartTrack = (e: React.TouchEvent<HTMLInputElement>) => {
+    if (e.cancelable) e.preventDefault()
+    const touch = e.touches[0]
+    if (!touch) return
+    updateFromClientX(touch.clientX)
+    const onMove = (ev: TouchEvent) => {
+      const t = ev.touches[0]
+      if (!t) return
+      updateFromClientX(t.clientX)
+    }
+    const onEnd = () => {
+      window.removeEventListener('touchmove', onMove)
+      window.removeEventListener('touchend', onEnd)
+      window.removeEventListener('touchcancel', onEnd)
+    }
+    window.addEventListener('touchmove', onMove, { passive: false })
+    window.addEventListener('touchend', onEnd)
+    window.addEventListener('touchcancel', onEnd)
+  }
+
+  // Compute slider marks for the current unit
+  const getSliderMarks = () => {
+    const min = 1
+    const max = useMetric ? 644 : 400
+    const unit = getRadiusUnit()
+    const steps = 4 // yields 5 marks including ends
+    const increment = (max - min) / steps
+    return Array.from({ length: steps + 1 }, (_, i) => {
+      const value = Math.round(min + i * increment)
+      return { value, label: `${value} ${unit}` }
+    })
+  }
+
   const originalDMS = {
     lat: decimalToDMS(originalCoords.lat),
     lon: decimalToDMS(originalCoords.lon)
@@ -264,15 +351,65 @@ export default function Home() {
               <label htmlFor="radius" className="block text-sm font-medium text-gray-700">
                 Search Radius ({getRadiusUnit()})
               </label>
-              <input
-                type="range"
-                id="radius"
-                min={useMetric ? "1" : "1"}
-                max={useMetric ? "644" : "400"}
-                value={getRadiusValue()}
-                onChange={(e) => setRadiusValue(Number(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-              />
+              <div className="flex items-center space-x-3">
+                <button
+                  type="button"
+                  aria-label="Decrease radius"
+                  onClick={() => setRadiusValue(Math.max(1, getRadiusValue() - 1))}
+                  onMouseDown={() => startAdjust(-1)}
+                  onMouseUp={stopAdjust}
+                  onMouseLeave={stopAdjust}
+                  onTouchStart={() => startAdjust(-1)}
+                  onTouchEnd={stopAdjust}
+                  className="px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 select-none"
+                >
+                  −
+                </button>
+                <input
+                  ref={sliderRef}
+                  type="range"
+                  id="radius"
+                  min={useMetric ? 1 : 1}
+                  max={useMetric ? 644 : 400}
+                  step={1}
+                  value={getRadiusValue()}
+                  onInput={(e) => setRadiusValue(Number((e.currentTarget as HTMLInputElement).value))}
+                  onChange={(e) => setRadiusValue(Number((e.currentTarget as HTMLInputElement).value))}
+                  onMouseDown={onMouseDownTrack}
+                  onTouchStart={onTouchStartTrack}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider relative z-10"
+                />
+                <button
+                  type="button"
+                  aria-label="Increase radius"
+                  onClick={() => setRadiusValue(Math.min((useMetric ? 644 : 400), getRadiusValue() + 1))}
+                  onMouseDown={() => startAdjust(1)}
+                  onMouseUp={stopAdjust}
+                  onMouseLeave={stopAdjust}
+                  onTouchStart={() => startAdjust(1)}
+                  onTouchEnd={stopAdjust}
+                  className="px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 select-none"
+                >
+                  +
+                </button>
+              </div>
+              <div className="relative h-8 mt-1 select-none pointer-events-none">
+                {getSliderMarks().map((mark) => {
+                  const min = 1
+                  const max = useMetric ? 644 : 400
+                  const percent = ((mark.value - min) / (max - min)) * 100
+                  return (
+                    <div
+                      key={mark.value}
+                      className="absolute top-0 text-[10px] text-gray-500 flex flex-col items-center"
+                      style={{ left: `${percent}%`, transform: 'translateX(-50%)' }}
+                    >
+                      <div className="w-px h-2 bg-gray-400"></div>
+                      <div className="mt-1 whitespace-nowrap">{mark.label}</div>
+                    </div>
+                  )
+                })}
+              </div>
               <div className="text-center mt-2 text-lg font-semibold text-blue-600">
                 {getRadiusValue()} {getRadiusUnit()}
               </div>
@@ -303,7 +440,7 @@ export default function Home() {
             <>
               <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <path className="opacity-75" fill="currentColor" d="M4 12a 8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
               Finding your random destination...
             </>
